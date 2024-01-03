@@ -9,6 +9,8 @@
 #define OFF 0;
 
 
+// TODO: parse the headers out of the first line of the csv
+
 /* Append a new char to the provided array. 
 If the array has reached its max capacity, allocate 
 more memory, free the first array, copy the new array
@@ -50,6 +52,23 @@ void writeToLine(Line* line, char c, int index)
 	else {
 		line->line[index] = c;
 	}
+}
+
+Line readLine(FILE* fp)
+{
+	int c, index;
+	index = 0;
+
+
+	Line line;
+	line.lineSize = 5;
+	line.line = malloc(5 * sizeof(char));
+
+	while ((c=getc(fp)) != LINE_ENDING)
+		writeToLine(&line, c, index++);
+		
+
+	return line;
 }
 
 // TODO: create a column state to identify when in a new col
@@ -109,8 +128,7 @@ FileMeta parseHeaders(FILE* fp)
 int main() 
 {
 	FILE* fp = fopen("test.csv", "r");
-	FileMeta fileMeta;
-	fileMeta = parseHeaders(fp);
-	printf("%d\n",fileMeta.columns);
+	Line line = readLine(fp);
+	printf("Line: %s\n", line.line);
 	fclose(fp);
 }
