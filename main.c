@@ -1,6 +1,6 @@
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
-#include <strings.h>
 
 #define DEFAULT_ROW_SIZE 100
 #define DEFAULT_LINE_SIZE 1000
@@ -76,6 +76,19 @@ void appendToLine(Line* line, char c, int index)
 	}
 }
 
+void resetStringArray(char* s)
+{
+	int l = strlen(s);
+	char* temp = malloc(l);
+	if (temp == NULL) {
+		printf("Error: error allocating new str in resetStringArray.\n");
+		free(s);
+		exit(EXIT_FAILURE);
+	}
+	free(s);
+	s = temp;
+}
+
 Line readLine(FILE* fp)
 {
 	int c, index;
@@ -134,7 +147,7 @@ FileMeta parseHeaders(FILE* fp)
 				fm.headers[fm.columnCount] = header;
 
 				fm.columnCount++;
-				memset(header, 0, strlen(header));
+				resetStringArray(header);
 				strIndex = 0;
 			}
 			else if (prevChar == '"') {
@@ -143,7 +156,7 @@ FileMeta parseHeaders(FILE* fp)
 				fm.columnCount++;
 				colStateQuotes = OFF;
 				// add the string to the header array
-				memset(header, 0, strlen(header));
+				resetStringArray(header);
 				strIndex = 0;
 			}
 			else {
@@ -161,13 +174,14 @@ FileMeta parseHeaders(FILE* fp)
 
 		prevChar = line.line[i];
 	}
+
+	return fm;
 }
 
 
 int main() 
 {
 	FILE* fp = fopen("PC_Report_Master.csv", "r");
-	Line line;
 	FileMeta fm;
 	fm = parseHeaders(fp);
 	for (int i=0; i<fm.columnCount; i++)
