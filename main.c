@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define DEFAULT_ROW_SIZE 5
+#define DEFAULT_ROW_SIZE 100
 #define DEFAULT_LINE_SIZE 1000
 #define LINE_ENDING '\n'
 
@@ -9,39 +9,39 @@
 #define OFF 0;
 
 
+
 // TODO: parse the headers out of the first line of the csv
-
-/* Append a new char to the provided array. 
-If the array has reached its max capacity, allocate 
-more memory, free the first array, copy the new array
-to the original pointer and return the new array size
-*/
-
 
 
 
 typedef struct {
-	int columns;
-	char headers[DEFAULT_ROW_SIZE];
+	int columnCount;
+	char* headers[DEFAULT_ROW_SIZE];
 } FileMeta;
 
 typedef struct {
 	int lineSize;
+	int lastLine;
 	char* line;
 } Line;
 
-void writeToLine(Line* line, char c, int index)
+// void appendToString(char* s, char c, int index) {
+
+// }
+
+void appendToLine(Line* line, char c, int index)
 {
 	// allocate new array, copy the current line over, free old array, update pointer
 	// account for 0 index
 	if (index >= (line->lineSize - 1)) {
-		printf("Allocating new memory for line array.\n");
-		char* temp = malloc((line->lineSize * 2) * sizeof(char));
-		for (int i=0; i < line->lineSize; i++) {
-			temp[i] = line->line[i];
+		
+		char* temp = realloc(line->line, (line->lineSize*2)*sizeof(char));
+		if (temp == NULL) {
+			printf("Error: error reallocating memory in appendToLine.\n");
+			free(line->line);
+			exit(EXIT_FAILURE);
 		}
 
-		free((*line).line);
 		line->lineSize = line->lineSize*2;
 		line->line = temp;
 		line->line[index] = c;
@@ -62,10 +62,21 @@ Line readLine(FILE* fp)
 
 	Line line;
 	line.lineSize = 5;
+	line.lastLine = 0;
 	line.line = malloc(5 * sizeof(char));
+	if (line.line == NULL){
+		printf("Error: malloc failed to allocate a new line.\n");
+		exit(EXIT_FAILURE);
+	}
 
-	while ((c=getc(fp)) != LINE_ENDING)
-		writeToLine(&line, c, index++);
+	while ((c=getc(fp)) != LINE_ENDING) {
+		if (c == EOF) {
+			line.lastLine = 1;
+			return line;
+		}
+		appendToLine(&line, c, index++);
+
+	}
 		
 
 	return line;
@@ -79,56 +90,47 @@ Line readLine(FILE* fp)
 
 FileMeta parseHeaders(FILE* fp)
 {
-	int c, colStateQuotes, prevChar;
-	colStateQuotes = OFF;
-
-	// line index
-	int index=0;
-
-	FileMeta fileMeta;
-	fileMeta.columns = 0;
-	Line line;
-	line.lineSize = 5;
-	line.line = malloc(5 * sizeof(char));
+	// read the first line 
+	// count the non-data commas 
+	FileMeta fm;
+	fm.columnCount = 0;
+	Line line = readLine(fp);
 	
-	/* NOTE: This conditional will break if a newline 
-	character is part of a column string. A new line 
-	character is allowed to be part of a col string 
-	as long as that col is wrapped in double-quotes, 
-	so that will need to be an added check to this. 
-	*/
-	while ((c=getc(fp)) != LINE_ENDING) {
+	int colStateQuotes, prevChar, strIndex;
+	strIndex = 0;
 
-		writeToLine(&line, c, index);
-		// set the colState
-		if (colStateQuotes == 0 && c == '"')
-			colStateQuotes = ON;
-
+	for (int i=0; i<line.lineSize; i++) {
 		
-		if (c == ',') {
+		if (colStateQuotes == 0 && line.line[i] == '"')
+			colStateQuotes = ON; 
+
+		if (line.line[i] == ',') {
 			if (colStateQuotes == 0)
-				fileMeta.columns++;
+				fm.columnCount++;
 			else if (prevChar == '"') {
-				fileMeta.columns++;
-				colStateQuotes = OFF; // turn off the quotes state
+				fm.columnCount++;
+				colStateQuotes = OFF;
+				strIndex = 0;
 			}
 		}
-		prevChar = c;
-		index++;
-	}
-	// add another column to account for the last column
-	fileMeta.columns++;
-	
 
-	printf("Line: %s\n", line.line);
-	return fileMeta;
+		// if (colStateQuotes == 0) {
+		// 	fm.headers[]
+		// }
+
+		prevChar = line.line[i];
+	}
 }
 
 
 int main() 
 {
-	FILE* fp = fopen("test.csv", "r");
-	Line line = readLine(fp);
-	printf("Line: %s\n", line.line);
+	FILE* fp = fopen("PC_Report_Master.csv", "r");
+	Line line;
+
+	do {
+		line = readLine(fp);
+		printf("%s\n", line.line);
+	} while (line.lastLine != 1);
 	fclose(fp);
 }
