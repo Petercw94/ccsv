@@ -11,15 +11,20 @@
 
 
 
-// TODO: parse the headers out of the first line of the csv
-// TODO: find out how many lines there are in the csv
-// create an array of string literals char *[]
+// TODO: Looks like there is a bug when the data segment is surrounded by quotes. Probably need to escape those 
+// quotes before writing to the array.
 
 
 
 typedef struct {
 	int columnCount;
-	char* headers[DEFAULT_ROW_SIZE];
+	char** headers;
+} FileHeaders;
+
+typedef struct {
+	int rowCount;
+	int longestRow;
+	int longestCol;
 } FileMeta;
 
 typedef struct {
@@ -29,64 +34,55 @@ typedef struct {
 } Line;
 
 /**/
-void appendToString(char* s, char c, int index) {
-	int l = strlen(s);
-	
-	if (index > l) {
-		char* temp = realloc(s, (l*2)*sizeof(char));
-		if (temp == NULL) {
-			printf("Error: error reallocating memory in appendToLine.\n");
-			free(s);
-			exit(EXIT_FAILURE);
-		}
+void appendToString(char* s, char c, int index);
+void resetStringArray(char* s);
+void appendToLine(Line* line, char c, int index);
+void appendToStringArray(char*array[], char c, int index);
+FileMeta scanFile(char* s);
+Line readLine(FILE* fp);
+FileHeaders parseHeaders(FILE* fp);
 
-		s = temp;
-		s[index] = c;
 
-		return;
-	}
 
-	else {
-		s[index] = c;
-	}
+
+
+
+int main() 
+{
+	char* filepath = "test.csv";
+	FILE* fp = fopen(filepath, "r");
+	FileHeaders fh; 
+	fh = parseHeaders(fp);
+	printf("Header Count: %d\n", fh.columnCount);
+	for (int i=0; i<fh.columnCount; i++)
+		printf("%s\n", fh.headers[i]);
 }
 
-void appendToLine(Line* line, char c, int index)
+
+
+
+
+
+
+FileMeta scanFile(char* filepath)
 {
-	// allocate new array, copy the current line over, free old array, update pointer
-	// account for 0 index
-	if (index >= (line->lineSize - 1)) {
-		
-		char* temp = realloc(line->line, (line->lineSize*2)*sizeof(char));
-		if (temp == NULL) {
-			printf("Error: error reallocating memory in appendToLine.\n");
-			free(line->line);
-			exit(EXIT_FAILURE);
-		}
+	FILE* fp = fopen(filepath, "r");
+	FileMeta fm;
+	fm.longestRow = 0;
+	fm.rowCount = 0;
 
-		line->lineSize = line->lineSize*2;
-		line->line = temp;
-		line->line[index] = c;
-		
-		return;
-	}
+	Line line;
 
-	else {
-		line->line[index] = c;
-	}
-}
+	do {
+		line = readLine(fp);
+		fm.rowCount++;
+		if (line.lineSize > fm.longestRow) 
+			fm.longestRow = line.lineSize;
+			
+	} while (line.lastLine != 1);
 
-void resetStringArray(char* s)
-{
-	int l = strlen(s);
-	char* temp = malloc(l);
-	if (temp == NULL) {
-		printf("Error: error allocating new str in resetStringArray.\n");
-		free(s);
-		exit(EXIT_FAILURE);
-	}
-	free(s);
-	s = temp;
+	fclose(fp);
+	return fm;
 }
 
 Line readLine(FILE* fp)
@@ -123,18 +119,31 @@ Line readLine(FILE* fp)
 // 			if not wrapped in double quotes
 //				ignore any commas or new lines
 
-FileMeta parseHeaders(FILE* fp)
+
+FileHeaders parseHeaders(FILE* fp)
 {
 	// read the first line 
 	// count the non-data commas 
-	FileMeta fm;
-	fm.columnCount = 0;
+	FileHeaders fileHeaders;
+	fileHeaders.columnCount = 0;
 	Line line = readLine(fp);
-	
+	printf("%s\n", line.line);
+	fileHeaders.headers = malloc(200 * sizeof(char*));
+	if (fileHeaders.headers == NULL) {
+		fprintf(stderr, "Error: error allocating memory for header array.\n");
+		exit(EXIT_FAILURE);
+	}
+	fileHeaders.headers[fileHeaders.columnCount] = malloc(DEFAULT_ROW_SIZE * sizeof(char));
+	if (fileHeaders.headers[fileHeaders.columnCount] == NULL) {
+		fprintf(stderr, "Error: error allocating memory for header column.\n");
+		exit(EXIT_FAILURE);
+	}
+
 	int colStateQuotes, prevChar, strIndex;
+	colStateQuotes = OFF;
 	
 	strIndex = 0;
-	char header[DEFAULT_ROW_SIZE];
+	
 
 	for (int i=0; i<line.lineSize; i++) {
 		
@@ -143,29 +152,38 @@ FileMeta parseHeaders(FILE* fp)
 
 		if (line.line[i] == ',') {
 			if (colStateQuotes == 0) {
-				// add the string to the header array
-				fm.headers[fm.columnCount] = header;
-
-				fm.columnCount++;
-				resetStringArray(header);
+				// Null terminate the 
+				fileHeaders.headers[fileHeaders.columnCount][strIndex++] = '\0';
+				fileHeaders.columnCount++;
+				// get the next pointer for the sting
+				fileHeaders.headers[fileHeaders.columnCount] = malloc(DEFAULT_ROW_SIZE * sizeof(char));
+				if (fileHeaders.headers[fileHeaders.columnCount] == NULL) {
+					fprintf(stderr, "Error: error allocating memory for header column.\n");
+					exit(EXIT_FAILURE);
+				}
+				// reset the str index
 				strIndex = 0;
 			}
 			else if (prevChar == '"') {
-				fm.headers[fm.columnCount] = header;
-
-				fm.columnCount++;
-				colStateQuotes = OFF;
-				// add the string to the header array
-				resetStringArray(header);
+				// Null terminate the 
+				fileHeaders.headers[fileHeaders.columnCount][strIndex++] = '\0';
+				fileHeaders.columnCount++;
+				// get the next pointer for the sting
+				fileHeaders.headers[fileHeaders.columnCount] = malloc(DEFAULT_ROW_SIZE * sizeof(char));
+				if (fileHeaders.headers[fileHeaders.columnCount] == NULL) {
+					fprintf(stderr, "Error: error allocating memory for header column.\n");
+					exit(EXIT_FAILURE);
+				}
+				// reset the str index
 				strIndex = 0;
 			}
 			else {
-				appendToString(header, line.line[i], strIndex);
+				appendToString(fileHeaders.headers[fileHeaders.columnCount], line.line[i], strIndex++);
 			}
 		}
 		
 		else {
-			appendToString(header, line.line[i], strIndex);
+			appendToString(fileHeaders.headers[fileHeaders.columnCount], line.line[i], strIndex++);
 		}
 
 		// if (colStateQuotes == 0) {
@@ -174,17 +192,66 @@ FileMeta parseHeaders(FILE* fp)
 
 		prevChar = line.line[i];
 	}
-
-	return fm;
+	fileHeaders.columnCount++;
+	return fileHeaders;
 }
 
-
-int main() 
+void appendToLine(Line* line, char c, int index)
 {
-	FILE* fp = fopen("PC_Report_Master.csv", "r");
-	FileMeta fm;
-	fm = parseHeaders(fp);
-	for (int i=0; i<fm.columnCount; i++)
-		printf("%s\n", fm.headers[i]);
-	fclose(fp);
+	// allocate new array, copy the current line over, free old array, update pointer
+	// account for 0 index
+	if (index >= (line->lineSize - 1)) {
+		
+		char* temp = realloc(line->line, (line->lineSize*2)*sizeof(char));
+		if (temp == NULL) {
+			printf("Error: error reallocating memory in appendToLine.\n");
+			free(line->line);
+			exit(EXIT_FAILURE);
+		}
+
+		line->lineSize = line->lineSize*2;
+		line->line = temp;
+		line->line[index] = c;
+		
+		return;
+	}
+
+	else {
+		line->line[index] = c;
+	}
+}
+
+void appendToString(char* s, char c, int index) {
+	int l = strlen(s);
+	
+	if (index > l) {
+		char* temp = realloc(s, (l*2)*sizeof(char));
+		if (temp == NULL) {
+			printf("Error: error reallocating memory in appendToLine.\n");
+			free(s);
+			exit(EXIT_FAILURE);
+		}
+
+		s = temp;
+		s[index] = c;
+
+		return;
+	}
+
+	else {
+		s[index] = c;
+	}
+}
+
+void resetStringArray(char* s)
+{
+	int l = strlen(s);
+	char* temp = malloc(l * sizeof(char));
+	if (temp == NULL) {
+		printf("Error: error allocating new str in resetStringArray.\n");
+		free(s);
+		exit(EXIT_FAILURE);
+	}
+	free(s);
+	s = temp;
 }
