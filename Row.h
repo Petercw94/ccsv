@@ -8,7 +8,8 @@
 
 typedef struct {
 	int columnCount;
-	char** headers;
-} FileHeaders;
+	int lastRow; // indicates the last row in the file
+	char** columns;
+} Row;
 
-FileHeaders parseHeaders(FILE* fp);
+Row parseRow(FILE* fp);

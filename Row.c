@@ -1,22 +1,22 @@
-#include "FileHeaders.h"
+#include "Row.h"
 #include "Line.h"
 #include "utils.h"
 
-FileHeaders parseHeaders(FILE* fp)
+Row parseRow(FILE* fp)
 {
 	// read the first line 
 	// count the non-data commas 
-	FileHeaders fileHeaders;
-	fileHeaders.columnCount = 0;
+	Row row;
+	row.columnCount = 0;
+	row.lastRow = 0;
 	Line line = readLine(fp);
-	printf("%s\n", line.line);
-	fileHeaders.headers = malloc(200 * sizeof(char*));
-	if (fileHeaders.headers == NULL) {
+	row.columns = malloc(200 * sizeof(char*));
+	if (row.columns == NULL) {
 		fprintf(stderr, "Error: error allocating memory for header array.\n");
 		exit(EXIT_FAILURE);
 	}
-	fileHeaders.headers[fileHeaders.columnCount] = malloc(DEFAULT_ROW_SIZE * sizeof(char));
-	if (fileHeaders.headers[fileHeaders.columnCount] == NULL) {
+	row.columns[row.columnCount] = malloc(DEFAULT_ROW_SIZE * sizeof(char));
+	if (row.columns[row.columnCount] == NULL) {
 		fprintf(stderr, "Error: error allocating memory for header column.\n");
 		exit(EXIT_FAILURE);
 	}
@@ -35,11 +35,11 @@ FileHeaders parseHeaders(FILE* fp)
 		if (line.line[i] == ',') {
 			if (colStateQuotes == 0) {
 				// Null terminate the 
-				fileHeaders.headers[fileHeaders.columnCount][strIndex++] = '\0';
-				fileHeaders.columnCount++;
+				row.columns[row.columnCount][strIndex++] = '\0';
+				row.columnCount++;
 				// get the next pointer for the sting
-				fileHeaders.headers[fileHeaders.columnCount] = malloc(DEFAULT_ROW_SIZE * sizeof(char));
-				if (fileHeaders.headers[fileHeaders.columnCount] == NULL) {
+				row.columns[row.columnCount] = malloc(DEFAULT_ROW_SIZE * sizeof(char));
+				if (row.columns[row.columnCount] == NULL) {
 					fprintf(stderr, "Error: error allocating memory for header column.\n");
 					exit(EXIT_FAILURE);
 				}
@@ -48,11 +48,11 @@ FileHeaders parseHeaders(FILE* fp)
 			}
 			else if (prevChar == '"') {
 				// Null terminate the 
-				fileHeaders.headers[fileHeaders.columnCount][strIndex++] = '\0';
-				fileHeaders.columnCount++;
+				row.columns[row.columnCount][strIndex++] = '\0';
+				row.columnCount++;
 				// get the next pointer for the sting
-				fileHeaders.headers[fileHeaders.columnCount] = malloc(DEFAULT_ROW_SIZE * sizeof(char));
-				if (fileHeaders.headers[fileHeaders.columnCount] == NULL) {
+				row.columns[row.columnCount] = malloc(DEFAULT_ROW_SIZE * sizeof(char));
+				if (row.columns[row.columnCount] == NULL) {
 					fprintf(stderr, "Error: error allocating memory for header column.\n");
 					exit(EXIT_FAILURE);
 				}
@@ -60,20 +60,23 @@ FileHeaders parseHeaders(FILE* fp)
 				strIndex = 0;
 			}
 			else {
-				appendToString(fileHeaders.headers[fileHeaders.columnCount], line.line[i], strIndex++);
+				appendToString(row.columns[row.columnCount], line.line[i], strIndex++);
 			}
 		}
 		
 		else {
-			appendToString(fileHeaders.headers[fileHeaders.columnCount], line.line[i], strIndex++);
+			appendToString(row.columns[row.columnCount], line.line[i], strIndex++);
 		}
 
 		// if (colStateQuotes == 0) {
-		// 	fm.headers[]
+		// 	fm.row[]
 		// }
 
 		prevChar = line.line[i];
 	}
-	fileHeaders.columnCount++;
-	return fileHeaders;
+	row.columnCount++;
+	if (line.lastLine == 1) {
+		row.lastRow = 1;
+	}
+	return row;
 }
