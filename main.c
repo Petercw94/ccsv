@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "Line.h"
-#include "FileHeaders.h"
+#include "Row.h"
 #include "FileMeta.h"
 #include "utils.h"
 
@@ -30,13 +31,27 @@
 
 int main() 
 {
+	float startTime = (float)clock()/CLOCKS_PER_SEC;
 	char* filepath = "test.csv";
 	FILE* fp = fopen(filepath, "r");
-	FileHeaders fh; 
-	fh = parseHeaders(fp);
-	printf("Header Count: %d\n", fh.columnCount);
-	for (int i=0; i<fh.columnCount; i++)
-		printf("%s\n", fh.headers[i]);
+	Row row;
+	
+	do {
+		row = parseRow(fp);
+		for (int j=0; j<row.columnCount; j++) {
+			printf("%s", row.columns[j]);
+		}
+		printf("\n");
+	} while (row.lastRow != 1);
+	fclose(fp);
+	
+	float endTime = (float)clock()/CLOCKS_PER_SEC;
+
+	float timeElapsed = endTime - startTime;
+
+	printf("Execution time: %2.8f seconds\n", timeElapsed);
+
+	
 }
 
 
