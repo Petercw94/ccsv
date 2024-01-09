@@ -25,14 +25,10 @@
 
 
 
-
-
-
-
 int main() 
 {
 	float startTime = (float)clock()/CLOCKS_PER_SEC;
-	char* filepath = "test.csv";
+	char* filepath = "solcius_pc_report.csv";
 	FILE* fp = fopen(filepath, "r");
 	Row row;
 	
@@ -51,11 +47,7 @@ int main()
 
 	printf("Execution time: %2.8f seconds\n", timeElapsed);
 
-	
 }
-
-
-
 
 
 

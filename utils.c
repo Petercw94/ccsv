@@ -23,16 +23,3 @@ void appendToString(char* s, char c, int index) {
 		s[index] = c;
 	}
 }
-
-void resetStringArray(char* s)
-{
-	int l = strlen(s);
-	char* temp = malloc(l * sizeof(char));
-	if (temp == NULL) {
-		printf("Error: error allocating new str in resetStringArray.\n");
-		free(s);
-		exit(EXIT_FAILURE);
-	}
-	free(s);
-	s = temp;
-}

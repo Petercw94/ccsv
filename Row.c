@@ -29,10 +29,11 @@ Row parseRow(FILE* fp)
 
 	for (int i=0; i<line.lineSize; i++) {
 		
-		if (colStateQuotes == 0 && line.line[i] == '"')
+		if (line.line[i] == '"' && colStateQuotes == 0) {
 			colStateQuotes = ON; 
+		}
 
-		if (line.line[i] == ',') {
+		else if (line.line[i] == ',') {
 			if (colStateQuotes == 0) {
 				// Null terminate the 
 				row.columns[row.columnCount][strIndex++] = '\0';
