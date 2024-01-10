@@ -28,20 +28,16 @@
 int main() 
 {
 	float startTime = (float)clock()/CLOCKS_PER_SEC;
-	char* filepath = "solcius_pc_report.csv";
+	char* filepath = "PC_Report_Master.csv";
 	FILE* fp = fopen(filepath, "r");
-	Row row;
-	
-	do {
-		row = parseRow(fp);
-		for (int j=0; j<row.columnCount; j++) {
-			printf("%s", row.columns[j]);
-		}
-		printf("\n");
-	} while (row.lastRow != 1);
-	fclose(fp);
-	
-	float endTime = (float)clock()/CLOCKS_PER_SEC;
+    
+	Row row = parseRow(fp);
+
+    for (int i=0; i<row.columnCount; ++i) {
+        printf("%s\n",row.columns[i]);
+    }
+
+    float endTime = (float)clock()/CLOCKS_PER_SEC;
 
 	float timeElapsed = endTime - startTime;
 

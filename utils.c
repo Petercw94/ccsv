@@ -7,7 +7,7 @@ void appendToString(char* s, char c, int index) {
 	
 	if (index > l) {
 		char* temp = realloc(s, (l*2)*sizeof(char));
-		if (temp == NULL) {
+		if (!temp) {
 			printf("Error: error reallocating memory in appendToLine.\n");
 			free(s);
 			exit(EXIT_FAILURE);

@@ -79,5 +79,5 @@ Row parseRow(FILE* fp)
 	if (line.lastLine == 1) {
 		row.lastRow = 1;
 	}
-	return row;
+    return row;
 }
