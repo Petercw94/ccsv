@@ -37,6 +37,8 @@ int main()
         printf("%s\n",row.columns[i]);
     }
 
+    fclose(fp);
+ 
     float endTime = (float)clock()/CLOCKS_PER_SEC;
 
 	float timeElapsed = endTime - startTime;
