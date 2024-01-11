@@ -7,18 +7,22 @@
 
 /*
  * c_count -> the character count of the column
+ * c_string -> a pointer to the character string representation of
  * */ 
-void parseColumn(FILE* fp, int c_count)
+char* parseColumn(FILE* fp, int c_count)
 {
     int c;
     int offset = -c_count;
     offset--; // remove one from the offset to move cursor correctly
+
+
     int error = fseek(fp, offset, SEEK_CUR);
     if (error != 0) {
         fprintf(stderr, "Error adjusting the File Pointer while parsing the column\n");
         exit(EXIT_FAILURE);
     }
-
+    // TODO : replace the printing of the column with writing that column to a string 
+    // literal stored in column array (requires a new parameter: string literal pointer)
     for (int i = 0; i<c_count; ++i) {
         c = fgetc(fp);
         printf("%c", c);    
