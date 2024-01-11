@@ -4,7 +4,7 @@
 #include <time.h>
 
 #include "Line.h"
-#include "Row.h"
+#include "Parser.h"
 #include "FileMeta.h"
 #include "utils.h"
 
@@ -31,12 +31,8 @@ int main()
 	char* filepath = "PC_Report_Master.csv";
 	FILE* fp = fopen(filepath, "r");
     
-	Row row = parseRow(fp);
-
-    for (int i=0; i<row.columnCount; ++i) {
-        printf("%s\n",row.columns[i]);
-    }
-
+    parseRow(fp);
+    fclose(fp);
     float endTime = (float)clock()/CLOCKS_PER_SEC;
 
 	float timeElapsed = endTime - startTime;

@@ -42,6 +42,7 @@ Line readLine(FILE* fp)
 		exit(EXIT_FAILURE);
 	}
 
+		
 	while ((c=getc(fp)) != LINE_ENDING) {
 		if (c == EOF) {
 			line.lastLine = 1;
@@ -50,7 +51,6 @@ Line readLine(FILE* fp)
 		appendToLine(&line, c, index++);
 
 	}
-		
 
 	return line;
 }
