@@ -1,5 +1,4 @@
-#include "Parser.h"
-#include "FileMeta.h"
+#include "../include/Parser.h"
 
 #define LINE_ENDING '\n'
 #define ON 1
@@ -15,7 +14,11 @@ char* parseColumn(FILE* fp, int c_count)
     int offset = -c_count;
     offset--; // remove one from the offset to move cursor correctly
 
-
+    // allocate memory for the column string
+    char* s = (char*) malloc((c_count + 1) * sizeof(char));
+    if (s == NULL) {
+        fprintf(stderr, "Error allocating memory for column string.\n");
+    }
     int error = fseek(fp, offset, SEEK_CUR);
     if (error != 0) {
         fprintf(stderr, "Error adjusting the File Pointer while parsing the column\n");
@@ -25,8 +28,10 @@ char* parseColumn(FILE* fp, int c_count)
     // literal stored in column array (requires a new parameter: string literal pointer)
     for (int i = 0; i<c_count; ++i) {
         c = fgetc(fp);
-        printf("%c", c);    
+        s[i] = c;
     }
+    s[c_count] = '\0'; // terminate the string
+    return s;
 }
 
 void parseRow(FILE* fp)
@@ -57,7 +62,9 @@ void parseRow(FILE* fp)
             /* if a comma appears and we aren't in a quoted data column,
              * it would indicate that its the end of the column */
             if (colStateQuotes == 0) {
-                parseColumn(fp, colCharCount);
+                char* column = parseColumn(fp, colCharCount);
+                printf("%s", column);
+                free(column);
                 printf("%c", ' ');
                 colCharCount = 0; // reset the char counter for the next col
                 error = fseek(fp, 1, SEEK_CUR);
@@ -73,7 +80,9 @@ void parseRow(FILE* fp)
              * signify the end of the data state, which would also
              * indicate the end of the column. */
             else if (prevChar == '"') {
-                parseColumn(fp, colCharCount);
+                char* column = parseColumn(fp, colCharCount);
+                printf("%s", column);
+                free(column);
                 printf("%c", ' ');
                 colCharCount = 0; // reset the char counter for the next col
                 error = fseek(fp, 1, SEEK_CUR);
@@ -98,8 +107,10 @@ void parseRow(FILE* fp)
         }
         prevChar = c;
 	}
-    parseColumn(fp, colCharCount);
+    char* column = parseColumn(fp, colCharCount);
+    printf("%s", column);
     printf("\n");
+    free(column);
 }
 
 
