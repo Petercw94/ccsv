@@ -1,6 +1,4 @@
 #include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <time.h>
 
 #include "../include/Parser.h"
@@ -28,7 +26,11 @@ int main()
 	char* filepath = "../test/test.csv";
 	FILE* fp = fopen(filepath, "r");
     
-    parseRow(fp);
+    Row row = parseRow(fp);
+    printf("Total number of columns: %d\n", row.columnCount);
+    for (int i=0; i<row.columnCount; i++) {
+        printf("%s\n", row.columns[i]);
+    }
     fclose(fp);
     float endTime = (float)clock()/CLOCKS_PER_SEC;
 
