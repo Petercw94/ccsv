@@ -3,10 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "Line.h"
-#include "Parser.h"
-#include "FileMeta.h"
-#include "utils.h"
+#include "../include/Parser.h"
 
 #define DEFAULT_ROW_SIZE 100
 #define DEFAULT_LINE_SIZE 1000
@@ -28,7 +25,7 @@
 int main() 
 {
 	float startTime = (float)clock()/CLOCKS_PER_SEC;
-	char* filepath = "PC_Report_Master.csv";
+	char* filepath = "../test/test.csv";
 	FILE* fp = fopen(filepath, "r");
     
     parseRow(fp);
