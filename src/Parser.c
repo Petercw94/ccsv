@@ -34,20 +34,31 @@ char* parseColumn(FILE* fp, int c_count)
     return s;
 }
 
-void parseRow(FILE* fp)
+/* Parse the columns for the next row in the file buffer.
+ * Column values parsed as strings and written in order to the provided row array
+ * Returns: an integer indicating the total number of columns in the provided row */
+Row parseRow(FILE* fp)
 {
     
-    int c, colStateQuotes, prevChar, colCharCount, error;
+    int c, colStateQuotes, prevChar, colCharCount, error, colCount;
     colStateQuotes = OFF;
     
-    colCharCount = prevChar = 0;
+    colCount = colCharCount = prevChar = 0;
+    Row row;
 
+    // allocate an array of the default column size
+    row.columns = malloc(DEFAULT_COL_NUM * sizeof(char*));
+    if (row.columns == NULL) {
+        fprintf(stderr, "Error: There was an error allocating memory for the row array.\n");
+    }
+
+    
 	while ((c=fgetc(fp)) != LINE_ENDING) {
 		
 
         /* if line ending or end of file hit, parse the column then break the loop */
         if (c == EOF) {
-            parseColumn(fp, colCharCount);
+            row.columns[colCount++] = parseColumn(fp, colCharCount);
             break;
         }
         /* If a " appears and we aren't currently in a 
@@ -62,10 +73,7 @@ void parseRow(FILE* fp)
             /* if a comma appears and we aren't in a quoted data column,
              * it would indicate that its the end of the column */
             if (colStateQuotes == 0) {
-                char* column = parseColumn(fp, colCharCount);
-                printf("%s", column);
-                free(column);
-                printf("%c", ' ');
+                row.columns[colCount++] = parseColumn(fp, colCharCount);
                 colCharCount = 0; // reset the char counter for the next col
                 error = fseek(fp, 1, SEEK_CUR);
                 if (error != 0) {
@@ -80,10 +88,7 @@ void parseRow(FILE* fp)
              * signify the end of the data state, which would also
              * indicate the end of the column. */
             else if (prevChar == '"') {
-                char* column = parseColumn(fp, colCharCount);
-                printf("%s", column);
-                free(column);
-                printf("%c", ' ');
+                row.columns[colCount++] = parseColumn(fp, colCharCount);
                 colCharCount = 0; // reset the char counter for the next col
                 error = fseek(fp, 1, SEEK_CUR);
                 if (error != 0) {
@@ -107,10 +112,9 @@ void parseRow(FILE* fp)
         }
         prevChar = c;
 	}
-    char* column = parseColumn(fp, colCharCount);
-    printf("%s", column);
-    printf("\n");
-    free(column);
+    row.columns[colCount++] = parseColumn(fp, colCharCount);
+    row.columnCount = colCount;
+    return row;
 }
 
 
