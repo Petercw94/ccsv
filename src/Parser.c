@@ -59,6 +59,7 @@ Row parseRow(FILE* fp)
         /* if line ending or end of file hit, parse the column then break the loop */
         if (c == EOF) {
             row.columns[colCount++] = parseColumn(fp, colCharCount);
+            row.lastRow = 1;
             break;
         }
         /* If a " appears and we aren't currently in a 
@@ -114,7 +115,37 @@ Row parseRow(FILE* fp)
 	}
     row.columns[colCount++] = parseColumn(fp, colCharCount);
     row.columnCount = colCount;
+
+    // advance the cursor to the next line
+    error = fseek(fp, 1, SEEK_CUR);
+    if (error != 0) {
+        fprintf(stderr, "Error advancing file pointer after parsing column.\n");
+        exit(EXIT_FAILURE);
+    }
     return row;
 }
+
+void parseFile(FILE* fp)
+{
+    Row row;
+    // loop through the whole file
+    for (;;) {
+    
+        row = parseRow(fp);
+
+        for (int i=0; i<row.columnCount; ++i) {
+            printf("%s", row.columns[i]);
+        }
+        printf("\n");
+        
+
+        free(row.columns);     
+        
+        if (row.lastRow == 1) {
+            break;
+        }
+    }    
+}
+
 
 

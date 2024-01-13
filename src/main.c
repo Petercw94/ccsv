@@ -26,11 +26,8 @@ int main()
 	char* filepath = "../test/test.csv";
 	FILE* fp = fopen(filepath, "r");
     
-    Row row = parseRow(fp);
-    printf("Total number of columns: %d\n", row.columnCount);
-    for (int i=0; i<row.columnCount; i++) {
-        printf("%s\n", row.columns[i]);
-    }
+    parseFile(fp); 
+
     fclose(fp);
     float endTime = (float)clock()/CLOCKS_PER_SEC;
 

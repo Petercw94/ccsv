@@ -10,4 +10,10 @@ typedef struct {
     char** columns;
 } Row;
 
+typedef struct {
+    int rowCount;
+    char*** file;
+} File;
+
 Row parseRow(FILE* fp);
+void parseFile(FILE* fp);
