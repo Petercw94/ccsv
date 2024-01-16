@@ -18,25 +18,6 @@
 
 /**/
 
-static PyMethodDef CCSVMethods[] = {
-    {"get_headers", get_headers, METH_VARARGS, 
-        "return the first row (header row) of the file at the provided file path."},
-    {NULL, NULL, 0, NULL}
-};
-
-static struct PyModuleDef ccsvmodule = {
-    PyModuleDef_HEAD_INIT,
-    "ccsv", 
-    "Perform SQL like query operations on csv files.",
-    -1,
-    CCSVMethods
-};
-
-PyMODINIT_FUNC
-PyInit_ccsv(void)
-{
-    return PyModule_Create(&ccsvmodule);
-}
 
 int main() 
 {
