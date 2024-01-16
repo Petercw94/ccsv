@@ -1,7 +1,5 @@
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
+#include "../include/ccsv.h"
 
-#include "../include/Parser.h"
 
 /* TODO: 
  * 1. take the string from the python args
@@ -33,6 +31,20 @@ get_headers(PyObject* self, PyObject* args)
     // 4. 
     PyObject* py_tuple = PyTuple_New(row.columnCount);
 
+    /* Loop through the array and: 
+     * - convert each string into a python string PyObject* 
+     * - add the string object to the tuple. */
+    PyObject* column_string;
 
+    for (int i = 0; i < row.columnCount; ++i) {
+        column_string = PyUnicode_FromString(row.columns[i]); // create a PyObject Unicode type from the string literals
+        int error = PyTuple_SetItem(py_tuple, i, column_string);
+        if (error != 0) {
+            fprintf(stderr, "Error adding PyUnicode Object to PyTuple.\n");
+            exit(EXIT_FAILURE);
+       }
+    }
+
+    return py_tuple;
 
 }
