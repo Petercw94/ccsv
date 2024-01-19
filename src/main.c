@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "../include/Parser.h"
+#include "../include/ccsv.h"
 
 #define DEFAULT_ROW_SIZE 100
 #define DEFAULT_LINE_SIZE 1000
@@ -19,16 +19,11 @@
 /**/
 
 
-
 int main() 
 {
 	float startTime = (float)clock()/CLOCKS_PER_SEC;
-	char* filepath = "../test/test.csv";
-	FILE* fp = fopen(filepath, "r");
     
-    parseFile(fp); 
 
-    fclose(fp);
     float endTime = (float)clock()/CLOCKS_PER_SEC;
 
 	float timeElapsed = endTime - startTime;
