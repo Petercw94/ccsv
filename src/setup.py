@@ -1,6 +1,6 @@
 from distutils.core import setup, Extension
 
-module1 = Extension('ccsv', sources=['ccsv.c'])
+module1 = Extension('ccsv', sources=['ccsv_types.c'])
 
 setup (name = 'ccsv',
         version = '1.0',
