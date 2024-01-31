@@ -1,24 +1,66 @@
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+#include <structmember.h>
 #include "../include/ccsv.h"
 
-static PyMethodDef CCSVMethods[] = {
-    {"get_headers", get_headers, METH_VARARGS, 
-        "return the first row (header row) of the file at the provided file path."},
-    {NULL, NULL, 0, NULL}
-};
 
-static struct PyModuleDef ccsvmodule = {
-    PyModuleDef_HEAD_INIT,
-    "ccsv", 
-    "Perform SQL like query operations on csv files.",
-    -1,
-    CCSVMethods
-};
+#define LINE_ENDING '\n'
+#define ON 1
+#define OFF 0
 
-PyMODINIT_FUNC
-PyInit_ccsv(void)
+
+typedef struct {
+    PyObject_HEAD
+    PyObject* file_name;
+} CsvObject;
+
+
+static void 
+Csv_dealloc(CsvObject* self)
 {
-    return PyModule_Create(&ccsvmodule);
+    Py_XDECREF(self->file_name);
+    Py_TYPE(self)->tp_free((PyObject*) self);
 }
+
+static PyObject*
+Csv_new(PyTypeObject* type, PyObject* args, PyObject* kwds)
+{
+    CsvObject* self;
+    self = (CsvObject*) type->tp_alloc(type, 0);
+    if (self !=NULL) {
+        self->file_name = PyUnicode_FromString("");
+        if (self->file_name == NULL) {
+            Py_DECREF(self);
+            return NULL;
+        }
+    }
+    return (PyObject*) self;
+}
+
+static int
+Csv_init(CsvObject* self, PyObject* args, PyObject* kwds)
+{
+    static char* kwdlist[] = {"file_name", NULL};
+    PyObject* file_name = NULL, *tmp;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O", kwdlist, &file_name)) {
+        return -1;
+    }
+
+    if ("file_name") {
+        tmp = self->file_name;
+        Py_INCREF(file_name);
+        self->file_name = file_name;
+        Py_XDECREF(tmp);
+    }
+
+    return 0;
+}
+
+static PyMemberDef Csv_members[] = {
+    {"file_name", T_OBJECT_EX, offsetof(CsvObject, file_name), 0, "full path to file."},
+    {NULL} /* Sentinal */
+};
 /* TODO: 
  * 1. take the string from the python args
  * 2. open a new file descriptor
@@ -68,9 +110,56 @@ get_headers(PyObject* self, PyObject* args)
 }
 
 
-#define LINE_ENDING '\n'
-#define ON 1
-#define OFF 0
+static PyMethodDef Csv_methods[] = {
+    {"get_headers", (PyCFunction) get_headers, METH_VARARGS, "Return the first row of a csv file as the headers."},
+    {NULL}
+}; 
+
+static PyTypeObject CsvType = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "ccsv.Csv",
+    .tp_doc = PyDoc_STR("CSV Parser class"),
+    .tp_basicsize = sizeof(CsvObject),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_new = Csv_new,
+    .tp_init = (initproc) Csv_init,
+    .tp_dealloc = (destructor) Csv_dealloc,
+    .tp_members = Csv_members,
+    .tp_methods = Csv_methods,
+};
+
+static PyModuleDef ccsvmodule = {
+    PyModuleDef_HEAD_INIT,
+    .m_name = "ccsv",
+    .m_doc = "Custom CSV parser that allows sql-like functionality.",
+    .m_size = -1,
+};
+
+PyMODINIT_FUNC
+PyInit_ccsv(void)
+{
+    PyObject* m;
+    if (PyType_Ready(&CsvType) < 0) {
+        return NULL;
+    }
+
+    m = PyModule_Create(&ccsvmodule);
+    if (m == NULL) {
+        return NULL;
+    }
+
+    Py_INCREF(&CsvType);
+    if (PyModule_AddObject(m, "Csv", (PyObject*) &CsvType) < 0) {
+        Py_DECREF(&CsvType);
+        Py_DECREF(m);
+        return NULL;
+    }
+
+    return m;
+}
+
+
 
 /*
  * c_count -> the character count of the column
