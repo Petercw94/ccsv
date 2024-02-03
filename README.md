@@ -3,5 +3,7 @@
 *This repo is still under development.*
 
 ## TODO:
-1. Raise an attribute error if file_name is not passed to the ____init____ function.
-2. Update the *get_headers()* method to take the file_name from self rather than as a passed parameter.
+1. TypeCheck the file_name attribute on init to ensure it is a string
+2. Add get_headers to the init and return an instance variable dict called headers for indexing filters
+3. Add a filter method that will take in an index or a header and a search pattern and will search the 
+specified column for that pattern. Return a tuple of rows found that match the provided pattern. 
