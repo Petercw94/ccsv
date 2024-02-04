@@ -157,8 +157,6 @@ PyMODINIT_FUNC PyInit_ccsv(void) {
  * c_count -> the character count of the column
  * c_string -> a pointer to the character string representation of
  * */
-// TODO: update the parseColumn function to remove the /r at the end of the last
-// string
 char *parseColumn(FILE *fp, int c_count) {
   int c;
   int offset = -c_count;
@@ -175,9 +173,6 @@ char *parseColumn(FILE *fp, int c_count) {
             "Error adjusting the File Pointer while parsing the column\n");
     exit(EXIT_FAILURE);
   }
-  // TODO : replace the printing of the column with writing that column to a
-  // string literal stored in column array (requires a new parameter: string
-  // literal pointer)
   for (int i = 0; i < c_count; ++i) {
     c = fgetc(fp);
     if (c == '\r') {
