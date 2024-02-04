@@ -70,7 +70,6 @@ static PyMemberDef Csv_members[] = {
     {NULL} /* Sentinal */
 };
 
-// TODO: update get_headers to return a dictionary and not a tuple.
 static PyObject *get_headers(CsvObject *self) {
   // 1.
   const char *file_path = PyUnicode_AsUTF8(self->file_name);
@@ -86,25 +85,26 @@ static PyObject *get_headers(CsvObject *self) {
   // TODO check that the file closed properly
 
   // 4.
-  PyObject *py_tuple = PyTuple_New(row.columnCount);
+  PyObject *py_dict = PyDict_New();
 
   /* Loop through the array and:
    * - convert each string into a python string PyObject*
    * - add the string object to the tuple. */
-  PyObject *column_string;
+  PyObject *column_string, *column_index;
 
-  for (int i = 0; i < row.columnCount; ++i) {
+  for (long i = 0; i < row.columnCount; ++i) {
     column_string =
         PyUnicode_FromString(row.columns[i]); // create a PyObject Unicode type
                                               // from the string literals
-    int error = PyTuple_SetItem(py_tuple, i, column_string);
+    column_index = PyLong_FromLong(i);
+    int error = PyDict_SetItem(py_dict, column_string, column_index);
     if (error != 0) {
-      fprintf(stderr, "Error adding PyUnicode Object to PyTuple.\n");
+      fprintf(stderr, "Error adding PyUnicode Object to PyDict.\n");
       exit(EXIT_FAILURE);
     }
   }
 
-  return py_tuple;
+  return py_dict;
 }
 
 static PyMethodDef Csv_methods[] = {
@@ -157,6 +157,8 @@ PyMODINIT_FUNC PyInit_ccsv(void) {
  * c_count -> the character count of the column
  * c_string -> a pointer to the character string representation of
  * */
+// TODO: update the parseColumn function to remove the /r at the end of the last
+// string
 char *parseColumn(FILE *fp, int c_count) {
   int c;
   int offset = -c_count;
@@ -178,6 +180,9 @@ char *parseColumn(FILE *fp, int c_count) {
   // literal pointer)
   for (int i = 0; i < c_count; ++i) {
     c = fgetc(fp);
+    if (c == '\r') {
+      break; // \r indicates the end of the row in some formats I guess?
+    }
     s[i] = c;
   }
   s[c_count] = '\0'; // terminate the string
