@@ -9,7 +9,11 @@
 
 typedef struct {
   PyObject_HEAD PyObject *file_name;
+  int headers_exist;
+  PyObject *headers;
 } CsvObject;
+
+static PyObject *get_headers(CsvObject *self);
 
 static void Csv_dealloc(CsvObject *self) {
   Py_XDECREF(self->file_name);
@@ -29,20 +33,30 @@ static PyObject *Csv_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
   return (PyObject *)self;
 }
 
-// TODO: Check if the file_name is a string, if not raise a TypeError
 static int Csv_init(CsvObject *self, PyObject *args, PyObject *kwds) {
-  static char *kwdlist[] = {"file_name", NULL};
-  PyObject *file_name = NULL, *tmp;
-
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwdlist, &file_name)) {
+  static char *kwdlist[] = {"file_name", "headers_exist", NULL};
+  PyObject *file_name = NULL, *tmp, *headers;
+  self->headers_exist = 1; // default to true
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "U|p", kwdlist, &file_name,
+                                   &self->headers_exist)) {
     return -1;
   }
 
-  if ("file_name") {
+  if (file_name) {
     tmp = self->file_name;
     Py_INCREF(file_name);
     self->file_name = file_name;
     Py_XDECREF(tmp);
+  }
+
+  if (self->headers_exist) {
+
+    headers = get_headers(self);
+
+    if (headers != NULL) {
+      Py_INCREF(headers);
+      self->headers = headers;
+    }
   }
 
   return 0;
@@ -51,9 +65,12 @@ static int Csv_init(CsvObject *self, PyObject *args, PyObject *kwds) {
 static PyMemberDef Csv_members[] = {
     {"file_name", T_OBJECT_EX, offsetof(CsvObject, file_name), 0,
      "full path to file."},
+    {"headers", T_OBJECT_EX, offsetof(CsvObject, headers), 0,
+     "tuple of file headers"},
     {NULL} /* Sentinal */
 };
 
+// TODO: update get_headers to return a dictionary and not a tuple.
 static PyObject *get_headers(CsvObject *self) {
   // 1.
   const char *file_path = PyUnicode_AsUTF8(self->file_name);
