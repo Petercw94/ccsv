@@ -1,4 +1,4 @@
-from distutils.core import setup, Extension
+from setuptools import setup, Extension
 
 module1 = Extension('ccsv', sources=['ccsv.c'])
 
