@@ -287,6 +287,8 @@ static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds) {
     }
   }
   fclose(fp);
+  // TODO: resize the tuple to only include space for the results. If no results
+  // found, then resize to one and add the NULL character.
   return results;
 }
 
