@@ -286,12 +286,9 @@ static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds) {
     if (found == 1) {
       PyObject *row_tuple = convert_row_to_tuple(row);
       result_count++;
-      // TODO: add check to make sure tuple isn't larger than allocated size
       if (result_count >= file_size) {
         file_size = file_size + 100;
-        // BUG: Looks like there could be a segmentation fault when trying to
-        // resize the array here
-        results_array = realloc(results_array, file_size);
+        results_array = realloc(results_array, sizeof(PyObject *) * file_size);
         if (results_array == NULL) {
           PyErr_SetString(PyExc_MemoryError,
                           "error allocating memory for results array.");
