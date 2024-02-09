@@ -226,7 +226,9 @@ static int search_column(char *column, const char *pattern,
   pi = found = 0;
   // loop through the column
   for (int i = 0; i < col_len; ++i) {
-    while (column[i] == pattern[pi]) {
+    while (column[i] == pattern[pi] && i < col_len) {
+      // NOTE: I left the incrementation in the scope here so as not to
+      // pre-maturely increment
       ++i;
       ++pi;
     }
@@ -264,7 +266,9 @@ static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds) {
   const char *pattern_str = PyUnicode_AsUTF8(pattern);
   int pattern_length =
       strlen(pattern_str); // find the len of the pattern string
+
   int index = get_column_index(self->headers, column);
+
   if (index < 0) {
     return results; // NOTE: get_column_index already raises a python error, so
                     // just need to terminate execution here by sending an empty
