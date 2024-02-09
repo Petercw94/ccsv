@@ -22,6 +22,7 @@ static PyObject *convert_row_to_dict(Row row);
 static int get_column_index(PyObject *dict, PyObject *key);
 static int search_column(char *column, const char *pattern, int pattern_length);
 static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds);
+static PyObject *read_file(CsvObject *self);
 
 static void Csv_dealloc(CsvObject *self) {
   Py_XDECREF(self->file_name);
@@ -106,6 +107,9 @@ static PyMethodDef Csv_methods[] = {
     {"filter", (PyCFunction)filter, METH_VARARGS | METH_KEYWORDS,
      "Search the provided column for the provided pattern. Return the rows "
      "that have a match"},
+    {"read_file", (PyCFunction)read_file, METH_NOARGS,
+     "Read the entire file into memory. Returns a list of tuples, where each "
+     "tuple is a row."},
     {NULL}};
 
 static PyTypeObject CsvType = {
@@ -309,6 +313,7 @@ static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds) {
       break;
     }
   }
+  // TODO: make sure the file closes properly
   fclose(fp);
   results = PyList_New(tuple_index);
   for (int i = 0; i < tuple_index; ++i) {
@@ -328,7 +333,69 @@ static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds) {
   free(results_array);
   return results;
 }
+static PyObject *read_file(CsvObject *self) {
+  int file_size = 1000; // NOTE: just defaulting to 1000 rows for now. This can
+                        // be adjusted later with some research
+  PyObject **file_array =
+      malloc(sizeof(PyObject *) *
+             file_size); // dynamically allocate the array so it can be freed
+                         // once we convert to a Python List
 
+  PyObject *file;
+
+  const char *file_path = PyUnicode_AsUTF8(self->file_name);
+
+  FILE *fp = fopen(file_path, "r");
+
+  if (fp == NULL) {
+    // TODO:make the exception message more detailed.
+    PyErr_SetString(PyExc_IOError, "error opening file at provided filepath");
+    return file;
+  }
+
+  int row_count, row_index;
+  row_count = row_index = 0;
+  for (;;) {
+
+    Row row = parseRow(fp);
+
+    PyObject *row_tuple = convert_row_to_tuple(row);
+    row_count++;
+    if (row_count >= file_size) {
+      file_size = file_size + 1000;
+      file_array = realloc(file_array, sizeof(PyObject *) * file_size);
+      if (file_array == NULL) {
+        PyErr_SetString(PyExc_MemoryError,
+                        "error allocating memory for results array.");
+      }
+    }
+    file_array[row_index++] = row_tuple;
+
+    if (row.lastRow == 1) {
+      break;
+    }
+  }
+  // TODO: make sure the file closes properly
+  fclose(fp);
+
+  file = PyList_New(row_count);
+  for (int i = 0; i < row_count; ++i) {
+    int error = PyList_SetItem(file, i, file_array[i]);
+    if (error != 0) {
+      if (error == -1) {
+        PyErr_SetString(PyExc_IndexError, "index out of bounds.");
+        free(file_array);
+        return file;
+      }
+      PyErr_SetString(PyExc_Exception,
+                      "error while converting to Python list.");
+      free(file_array);
+      return file;
+    }
+  }
+  free(file_array);
+  return file;
+}
 /*
  * c_count -> the character count of the column
  * c_string -> a pointer to the character string representation of
