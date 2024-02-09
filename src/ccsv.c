@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #define PY_SSIZE_T_CLEAN
 #include "../include/ccsv.h"
 #include <Python.h>
@@ -16,6 +18,7 @@ typedef struct {
 static PyObject *get_headers(CsvObject *self);
 static int get_column_index(PyObject *dict, PyObject *key);
 static PyObject *convert_row_to_tuple(Row row);
+static PyObject *convert_row_to_dict(Row row);
 static int get_column_index(PyObject *dict, PyObject *key);
 static int search_column(char *column, const char *pattern, int pattern_length);
 static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds);
@@ -81,35 +84,18 @@ static PyObject *get_headers(CsvObject *self) {
 
   // 2.
   FILE *fp = fopen(file_path, "r");
-  // TODO: check that the file opened properly
+  if (fp == NULL) {
+    // TODO: make the error string more descriptive
+    PyErr_SetString(PyExc_IOError, "error opening the provided file");
+  }
 
   // 3.
   Row row;
   row = parseRow(fp);
-  fclose(fp);
   // TODO: check that the file closed properly
-
+  int close = fclose(fp);
   // 4.
-  // TODO: refactor the following code into a function that takes a Row and
-  // returns a dict
-  PyObject *py_dict = PyDict_New();
-
-  /* Loop through the array and:
-   * - convert each string into a python string PyObject*
-   * - add the string object to the tuple. */
-  PyObject *column_string, *column_index;
-
-  for (long i = 0; i < row.columnCount; ++i) {
-    column_string =
-        PyUnicode_FromString(row.columns[i]); // create a PyObject Unicode type
-                                              // from the string literals
-    column_index = PyLong_FromLong(i);
-    int error = PyDict_SetItem(py_dict, column_string, column_index);
-    if (error != 0) {
-      fprintf(stderr, "Error adding PyUnicode Object to PyDict.\n");
-      exit(EXIT_FAILURE);
-    }
-  }
+  PyObject *py_dict = convert_row_to_dict(row);
 
   return py_dict;
 }
@@ -190,6 +176,29 @@ static PyObject *convert_row_to_tuple(Row row) {
   return py_tuple;
 }
 
+static PyObject *convert_row_to_dict(Row row) {
+
+  PyObject *py_dict = PyDict_New();
+
+  /* Loop through the array and:
+   * - convert each string into a python string PyObject*
+   * - add the string object to the tuple. */
+  PyObject *column_string, *column_index;
+
+  for (long i = 0; i < row.columnCount; ++i) {
+    column_string =
+        PyUnicode_FromString(row.columns[i]); // create a PyObject Unicode type
+                                              // from the string literals
+    column_index = PyLong_FromLong(i);
+    int error = PyDict_SetItem(py_dict, column_string, column_index);
+    if (error != 0) {
+      fprintf(stderr, "Error adding PyUnicode Object to PyDict.\n");
+      exit(EXIT_FAILURE);
+    }
+  }
+  return py_dict;
+}
+
 /*
  * Return the index for the provided column name (str)*/
 static int get_column_index(PyObject *dict, PyObject *key) {
@@ -210,7 +219,6 @@ static int get_column_index(PyObject *dict, PyObject *key) {
 /*
  * Search a single column value for a provided pattern
  * */
-// TODO: implement a search accross the column value
 static int search_column(char *column, const char *pattern,
                          int pattern_length) {
   int col_len = strlen(column); // find the length of the col
@@ -234,11 +242,16 @@ static int search_column(char *column, const char *pattern,
 
 static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds) {
   // default tuple result set size to 5
-  int tuple_size = 5;
-  PyObject *results = PyTuple_New(tuple_size);
-  int result_count = 0; // count the results, if it gets higher than 5 than we
-                        // need to reallocate our tuple to a bigger size
-  int found;            // will indicate if a Row has a match for the pattern
+  int file_size = 100;
+  PyObject **results_array = malloc(
+      sizeof(PyObject *) * file_size); // dynamically allocate the array so it
+                                       // can be freed when we are done with it.
+  PyObject *results;                   // final tuple object
+  Py_ssize_t result_count, zero_index;
+  result_count = zero_index =
+      0;     // count the results, if it gets higher than 5 than we
+             // need to reallocate our tuple to a bigger size
+  int found; // will indicate if a Row has a match for the pattern
   // parse the parameters
   static char *kwlist[] = {"column", "pattern", NULL};
 
@@ -248,11 +261,9 @@ static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds) {
     PyErr_SetString(PyExc_Exception, "error parsing the passed paramters.");
     return results;
   }
-  printf("Parsed paramters\n");
   const char *pattern_str = PyUnicode_AsUTF8(pattern);
   int pattern_length =
       strlen(pattern_str); // find the len of the pattern string
-  printf("Converted pattern to str: %s\n", pattern_str);
   int index = get_column_index(self->headers, column);
   if (index < 0) {
     return results; // NOTE: get_column_index already raises a python error, so
@@ -260,7 +271,6 @@ static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds) {
                     // tuple
   }
 
-  printf("Column index found: %d\n", index);
   // open a new file pointer for the file
   const char *file_path = PyUnicode_AsUTF8(self->file_name);
 
@@ -269,26 +279,47 @@ static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds) {
   // TODO: check that the file opened properly
   int tuple_index = 0;
   int tuple_write_success;
+  int row_num = 0;
   for (;;) {
     Row row = parseRow(fp);
-    // TODO: search the provided column for the provided pattern
     found = search_column(row.columns[index], pattern_str, pattern_length);
     if (found == 1) {
       PyObject *row_tuple = convert_row_to_tuple(row);
+      result_count++;
       // TODO: add check to make sure tuple isn't larger than allocated size
-      tuple_write_success = PyTuple_SetItem(results, tuple_index++, row_tuple);
-      if (tuple_write_success != 0) {
-        PyErr_SetString(PyExc_IndexError,
-                        "error writing to tuple in filter method");
+      if (result_count >= file_size) {
+        file_size = file_size + 100;
+        // BUG: Looks like there could be a segmentation fault when trying to
+        // resize the array here
+        results_array = realloc(results_array, file_size);
+        if (results_array == NULL) {
+          PyErr_SetString(PyExc_MemoryError,
+                          "error allocating memory for results array.");
+        }
       }
+      results_array[tuple_index++] = row_tuple;
     }
     if (row.lastRow == 1) {
       break;
     }
   }
   fclose(fp);
-  // TODO: resize the tuple to only include space for the results. If no results
-  // found, then resize to one and add the NULL character.
+  results = PyList_New(tuple_index);
+  for (int i = 0; i < tuple_index; ++i) {
+    int error = PyList_SetItem(results, i, results_array[i]);
+    if (error != 0) {
+      if (error == -1) {
+        PyErr_SetString(PyExc_IndexError, "index out of bounds.");
+        free(results_array);
+        return results;
+      }
+      PyErr_SetString(PyExc_Exception,
+                      "error while converting to Python list.");
+      free(results_array);
+      return results;
+    }
+  }
+  free(results_array);
   return results;
 }
 
@@ -334,6 +365,7 @@ Row parseRow(FILE *fp) {
 
   colCount = colCharCount = prevChar = 0;
   Row row;
+  row.lastRow = 0;
 
   // allocate an array of the default column size
   row.columns = malloc(DEFAULT_COL_NUM * sizeof(char *));
