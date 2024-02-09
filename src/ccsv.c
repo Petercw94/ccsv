@@ -276,7 +276,12 @@ static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds) {
 
   // 2.
   FILE *fp = fopen(file_path, "r");
-  // TODO: check that the file opened properly
+
+  if (fp == NULL) {
+    // TODO:make the exception message more detailed.
+    PyErr_SetString(PyExc_IOError, "error opening file at provided filepath");
+    return results;
+  }
   int tuple_index = 0;
   int tuple_write_success;
   int row_num = 0;
