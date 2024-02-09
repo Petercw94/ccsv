@@ -284,7 +284,8 @@ static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds) {
 
   // 2.
   FILE *fp = fopen(file_path, "r");
-
+  // BUG: if a bad file path is entered, the error message below isn't
+  // displayed, rather a segmentation fault is raised and Python terminates
   if (fp == NULL) {
     // TODO:make the exception message more detailed.
     PyErr_SetString(PyExc_IOError, "error opening file at provided filepath");
@@ -361,6 +362,7 @@ static PyObject *read_file(CsvObject *self) {
 
     PyObject *row_tuple = convert_row_to_tuple(row);
     row_count++;
+    // TODO: add a check here. If headers_exist == True, skip the first row
     if (row_count >= file_size) {
       file_size = file_size + 1000;
       file_array = realloc(file_array, sizeof(PyObject *) * file_size);
