@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #define PY_SSIZE_T_CLEAN
 #include "../include/ccsv.h"
 #include <Python.h>
@@ -13,6 +14,7 @@ typedef struct {
   PyObject_HEAD PyObject *file_name;
   int headers_exist;
   PyObject *headers;
+  PyObject *file;
 } CsvObject;
 
 static PyObject *get_headers(CsvObject *self);
@@ -23,6 +25,7 @@ static int get_column_index(PyObject *dict, PyObject *key);
 static int search_column(char *column, const char *pattern, int pattern_length);
 static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds);
 static PyObject *read_file(CsvObject *self);
+static PyObject *write_file(CsvObject *self);
 
 static void Csv_dealloc(CsvObject *self) {
   Py_XDECREF(self->file_name);
@@ -35,6 +38,16 @@ static PyObject *Csv_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
   if (self != NULL) {
     self->file_name = PyUnicode_FromString("");
     if (self->file_name == NULL) {
+      Py_DECREF(self);
+      return NULL;
+    }
+    self->headers = PyDict_New();
+    if (self->headers == NULL) {
+      Py_DECREF(self);
+      return NULL;
+    }
+    self->file = PyList_New(0);
+    if (self->file == NULL) {
       Py_DECREF(self);
       return NULL;
     }
@@ -76,6 +89,8 @@ static PyMemberDef Csv_members[] = {
      "full path to file."},
     {"headers", T_OBJECT_EX, offsetof(CsvObject, headers), 0,
      "tuple of file headers"},
+    {"file", T_OBJECT_EX, offsetof(CsvObject, file), 0,
+     ".csv file stored in memory as List[Tuple]"},
     {NULL} /* Sentinal */
 };
 
@@ -108,8 +123,10 @@ static PyMethodDef Csv_methods[] = {
      "Search the provided column for the provided pattern. Return the rows "
      "that have a match"},
     {"read_file", (PyCFunction)read_file, METH_NOARGS,
-     "Read the entire file into memory. Returns a list of tuples, where each "
-     "tuple is a row."},
+     "Read the entire file into memory. Stores a list of tuples, where each "
+     "tuple is a row into the file attribute."},
+    {"write_file", (PyCFunction)write_file, METH_NOARGS,
+     "Write the csv object into a .csv file."},
     {NULL}};
 
 static PyTypeObject CsvType = {
@@ -334,6 +351,17 @@ static PyObject *filter(CsvObject *self, PyObject *args, PyObject *kwds) {
   free(results_array);
   return results;
 }
+/*
+ * reads a .csv file format into memory.
+ * Creates a Python List of Python Tuples, where
+ * each Tuple is a row in the file.
+ *
+ * NOTE: the current behavior in this read_file function is
+ * to treat the last row as NULL, working under the assumption
+ * that the last row in the file has a line break after it. This is
+ * not required by RFC4180, however, I am not sure how to check whether the
+ * last line is actually a line or not and MacOSX seems to default .csv files
+ * to have the last line end with a line break. */
 static PyObject *read_file(CsvObject *self) {
   int file_size = 1000; // NOTE: just defaulting to 1000 rows for now. This can
                         // be adjusted later with some research
@@ -359,7 +387,6 @@ static PyObject *read_file(CsvObject *self) {
   for (;;) {
 
     Row row = parseRow(fp);
-
     PyObject *row_tuple = convert_row_to_tuple(row);
     row_count++;
     // TODO: add a check here. If headers_exist == True, skip the first row
@@ -371,11 +398,22 @@ static PyObject *read_file(CsvObject *self) {
                         "error allocating memory for results array.");
       }
     }
+    // if headers_exist, don't write them to the file array as they exist in the
+    // headers attribute
+    if (self->headers_exist && row_count == 1) {
+      continue;
+    }
     file_array[row_index++] = row_tuple;
 
     if (row.lastRow == 1) {
+      row_count--;
       break;
     }
+  }
+  // if headers_exist then they were removed and the count should be decremented
+  // one for that removal
+  if (self->headers_exist) {
+    row_count--;
   }
   // TODO: make sure the file closes properly
   fclose(fp);
@@ -396,8 +434,60 @@ static PyObject *read_file(CsvObject *self) {
     }
   }
   free(file_array);
-  return file;
+
+  if (file != NULL) {
+    Py_INCREF(file);
+    self->file = file;
+  }
+  Py_RETURN_NONE;
 }
+
+static PyObject *write_file(CsvObject *self) {
+
+  const char *file_path = PyUnicode_AsUTF8(self->file_name);
+  FILE *fp = fopen(file_path, "w");
+  if (fp == NULL) {
+    PyErr_SetString(PyExc_IOError, "error opening file to write.");
+  }
+
+  // 2. Find the length of the Python Array file
+  PyObject *file = self->file;
+  Py_ssize_t len = PyList_Size(file);
+
+  // TODO: write the headers to the file first
+  PyObject *headers = PyDict_Keys(self->headers);
+  Py_ssize_t headers_len = PyList_Size(headers);
+  for (int i = 0; i < headers_len; i++) {
+    PyObject *header_value = PyList_GetItem(headers, i);
+    const char *header_str = PyUnicode_AsUTF8(header_value);
+    fprintf(fp, "%s", header_str);
+    if (i != headers_len - 1) {
+      fprintf(fp, ",");
+    }
+  }
+  fprintf(fp, "\n");
+  // 3. Loop through each item (tuple) in the file array
+  for (int i = 0; i < len; i++) {
+    PyObject *tuple = PyList_GetItem(file, i);
+    //  4. Loop through each item (str) of the tuple and create a string
+    Py_ssize_t tuple_len = PyTuple_Size(tuple);
+    for (int j = 0; j < tuple_len; j++) {
+      PyObject *value = PyTuple_GetItem(tuple, j);
+      // convert from python string to c string
+      //  representation of the row
+      const char *value_str = PyUnicode_AsUTF8(value);
+      fprintf(fp, "%s", value_str);
+      if (j != tuple_len - 1) {
+        fprintf(fp, ",");
+      }
+    }
+    fprintf(fp, "\n");
+  }
+  // 5. Close the file
+  fclose(fp);
+  Py_RETURN_NONE;
+}
+
 /*
  * c_count -> the character count of the column
  * c_string -> a pointer to the character string representation of
